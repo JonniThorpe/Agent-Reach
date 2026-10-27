@@ -91,7 +91,7 @@ def vtt_to_text(vtt: str) -> str:
 
 class YouTubeChannel(Channel):
     name = "youtube"
-    description = "YouTube 视频和字幕"
+    description = "Vídeos, Shorts y subtítulos de YouTube"
 
     level = "default"
     #: transcribe re-encodes and chunks audio
@@ -119,7 +119,7 @@ class YouTubeChannel(Channel):
             "Full subtitle text of a video (manual or auto captions)",
             (
                 Param("target", "video link or id"),
-                Param("lang", "preferred languages, comma separated", required=False, default="zh-Hans,zh,en,en-orig"),
+                Param("lang", "preferred languages, comma separated", required=False, default="es,es-ES,es-419,en,en-orig"),
             ),
             (("yt-dlp", "_ytdlp_subtitle"),),
             live_test={"target": "https://www.youtube.com/watch?v=jNQXAC9IVRw"},
