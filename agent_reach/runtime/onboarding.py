@@ -14,6 +14,7 @@ _PUBLIC_ACCESS = {
     'web': 'Usa primero la búsqueda y lectura web propias del agente; Reach solo cubre lo que falte.',
     'github': 'Repos públicos, README, issues/PR y comentarios públicos se pueden leer primero por la web o la API pública.',
     'youtube': 'Búsqueda y descripción públicas se pueden leer primero; la herramienta nativa puede obtener a veces comentarios, subtítulos y marcas de tiempo.',
+    'video': 'Vídeos públicos de TikTok e Instagram Reels: descripción, autor y estadísticas sin sesión; Instagram a veces exige iniciar sesión y entonces no se puede.',
     'bilibili': 'Búsqueda, descripción y estadísticas públicas se pueden leer primero; algunas interfaces públicas dan comentarios y respuestas.',
     'xiaoyuzhou': 'La transcripción de pódcasts necesita una clave de Groq; instalar no requiere iniciar sesión.',
     'v2ex': 'El cuerpo de los temas públicos y parte de las respuestas se pueden leer primero; la integridad y la paginación hay que comprobarlas aparte.',
@@ -28,6 +29,7 @@ _PUBLIC_ACCESS = {
 }
 
 _CAPABILITY_LIMITS = {
+    'video': ['Solo publicaciones públicas; no hay búsqueda ni comentarios. Instagram puede responder "login required" y este canal no inicia sesión.'],
     'youtube': ['read devuelve metadatos y descripción; no hay una acción de comentarios.',
                 'Los subtítulos dependen de las pistas disponibles; transcribir requiere un servicio y cuota configurados, y la sesión no garantiza subtítulos.'],
     'bilibili': ['read devuelve metadatos y descripción; no hay una acción de comentarios.',
@@ -48,6 +50,7 @@ _QUICK_ACCESS = {
     'xiaoyuzhou': ('🔑 Transcribir necesita clave', '—'),
     'github': ('✅ Buscar proyectos, leer documentación, discusiones y comentarios', '—'),
     'youtube': ('✅ Buscar vídeos y Shorts, leer descripción y subtítulos', '—'),
+    'video': ('✅ Leer TikTok y Reels, subtítulos y transcripción (con clave)', '—'),
     'bilibili': ('✅ Buscar vídeos, leer descripción', '❌ Leer subtítulos'),
     'v2ex': ('✅ Leer temas y respuestas', '—'),
     'web': ('✅ Buscar información, leer páginas', '—'),
@@ -63,7 +66,7 @@ _QUICK_ACCESS = {
 
 _DISPLAY_NAMES = {
     'xiaoyuzhou': 'Xiaoyuzhou',
-    'github': 'GitHub', 'youtube': 'YouTube', 'bilibili': 'Bilibili', 'v2ex': 'V2EX',
+    'github': 'GitHub', 'youtube': 'YouTube', 'video': 'TikTok / Reels', 'bilibili': 'Bilibili', 'v2ex': 'V2EX',
     'web': 'Web', 'reddit': 'Reddit', 'twitter': 'X / Twitter', 'facebook': 'Facebook',
     'instagram': 'Instagram', 'xiaohongshu': 'Xiaohongshu', 'linkedin': 'LinkedIn',
     'boss': 'BOSS Zhipin', 'xueqiu': 'Xueqiu',

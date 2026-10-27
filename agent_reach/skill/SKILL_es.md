@@ -2,7 +2,7 @@
 name: agent-reach
 description: >
   Acceso de solo lectura a contenido de plataformas: buscar, leer publicaciones, ver comentarios, obtener subtítulos, cotizaciones y empleos.
-  Úsalo cuando el usuario mencione o pegue un enlace de YouTube (vídeos, Shorts, subtítulos, transcripciones),
+  Úsalo cuando el usuario mencione o pegue un enlace de YouTube (vídeos, Shorts, subtítulos, transcripciones), TikTok, Instagram Reels,
   LinkedIn (empleos), Instagram, Facebook, Reddit, Twitter/X, GitHub, Bilibili, Xiaohongshu, V2EX,
   Xueqiu/cotizaciones, Boss Zhipin o pódcasts de Xiaoyuzhou; o diga "busca / mira / lee este enlace" y tu
   búsqueda o lectura web propia no esté disponible, falle o no obtenga el contenido;
@@ -62,6 +62,7 @@ La primera vez que se usa un sitio, si el Chrome del usuario está conectado a l
 ## Notas por plataforma
 
 - YouTube: los enlaces de Shorts (`youtube.com/shorts/…`) funcionan igual que los vídeos normales. `subtitle` descarga una sola pista: subtítulos hechos por personas en español (o en inglés); si no hay, los automáticos en el idioma original del vídeo. Mira `raw.lang`: si no es español, traduce tú el texto al responder; no pidas otra pista traducida, porque YouTube limita mucho esas peticiones. Para preferir otro idioma usa `--lang`. Si el vídeo no tiene subtítulos, `transcribe` convierte el audio en texto (necesita una clave de Groq u OpenAI).
+- TikTok e Instagram Reels: usa el canal `video` (`agent-reach video read|subtitle|transcribe <enlace>`, o `agent-reach read <enlace>`). Va por yt-dlp, sin navegador ni sesión, así que solo sirve para publicaciones públicas. Para saber qué se dice en el vídeo, prueba `subtitle` y, si no hay, `transcribe`. Si Instagram responde "login required" o un límite, díselo al usuario: este canal no inicia sesión y el canal `instagram` no lee reels sueltos.
 - Reach obtiene texto (título, descripción, subtítulos, transcripción), no imágenes: nunca afirmes haber visto lo que aparece en un vídeo o una imagen.
 - Al leer Xiaohongshu solo se obtienen descripciones de texto; nunca afirmes entender las imágenes o el vídeo.
 - Cuando un resultado de búsqueda de Boss Zhipin tenga `salary_encoded=true`, nunca adivines las cifras del salario; lee el enlace del empleo para ver el salario legible en el detalle.

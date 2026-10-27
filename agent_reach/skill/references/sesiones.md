@@ -25,7 +25,7 @@ Léelo cuando el usuario quiera iniciar o cerrar sesión, cambiar de cuenta, o c
 
 - Pide al usuario que inicie sesión solo cuando un resultado devuelva de verdad `NEED_LOGIN` y la tarea pendiente necesite esa ruta. Que la página tenga un botón de inicio de sesión no cuenta.
 - `agent-reach login <canal>` abre el navegador propio en la página de inicio de sesión del sitio y el usuario lo completa él mismo. Tú no inicias sesión, no pides contraseñas y no muestras cookies. Recomienda una cuenta secundaria.
-- La página puede verse en otro idioma; antes de escribir nada, el usuario debe comprobar que la barra de direcciones muestra el dominio oficial.
+- El navegador propio está en inglés a propósito: las herramientas que lo controlan buscan textos en inglés. Recomienda que la cuenta usada también tenga la interfaz en inglés (en LinkedIn, con la cuenta en español falla la búsqueda). Antes de escribir nada, el usuario debe comprobar que la barra de direcciones muestra el dominio oficial.
 - Si el resultado trae pasos en `next`, síguelos; algunos canales con herramienta propia (como Xueqiu) necesitan `agent-reach login <canal> --sync` después de iniciar sesión.
 - Cuando el usuario termine, vuelve a ejecutar la acción original para comprobarlo.
 

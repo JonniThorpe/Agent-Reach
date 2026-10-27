@@ -154,3 +154,48 @@ def test_subtitle_downloads_exactly_one_track_from_the_fetched_info(monkeypatch)
     assert download[download.index("--sub-langs") + 1] == "en-orig" and "--write-auto-subs" in download
     assert items[0]["title"] == "4 Rust tips" and "honeycomb" in items[0]["text"]
     assert items[0]["raw"]["lang"] == "en-orig" and items[0]["raw"]["translated"] is False
+
+
+# --- video channel: TikTok and Instagram Reels through the same yt-dlp helpers ---
+
+from agent_reach.channels import video  # noqa: E402
+from agent_reach.channels.video import VideoChannel  # noqa: E402
+
+
+@pytest.mark.parametrize("url", [
+    "https://www.tiktok.com/@scout2015/video/6718335390845095173",
+    "https://vm.tiktok.com/ZMabc123/",
+    "https://www.instagram.com/reel/C9xYz12AbCd/",
+    "https://www.instagram.com/reels/C9xYz12AbCd",
+    "https://www.instagram.com/p/C9xYz12AbCd/",
+    "https://www.instagram.com/someone/reel/C9xYz12AbCd/",
+])
+def test_video_channel_accepts_tiktok_and_reel_links(url):
+    assert VideoChannel().can_handle(url)
+
+
+@pytest.mark.parametrize("url", [
+    "https://www.instagram.com/someone/",
+    "https://www.instagram.com/explore/tags/rust/",
+    "https://tiktok.com.evil.test/video/1",
+    "https://www.youtube.com/shorts/jTwm4xs5y4c",
+])
+def test_video_channel_rejects_profiles_lookalikes_and_other_sites(url):
+    assert not VideoChannel().can_handle(url)
+
+
+def test_read_routes_reels_to_video_not_instagram():
+    from agent_reach.channels import get_all_channels
+    readers = [ch for ch in get_all_channels() if any(a.name == "read" for a in ch.actions) and ch.name != "web"]
+    reel = "https://www.instagram.com/reel/C9xYz12AbCd/"
+    assert next(ch.name for ch in readers if ch.can_handle(reel)) == "video"
+
+
+def test_video_transcribe_and_subtitle_reuse_the_shared_helpers(monkeypatch):
+    seen = {}
+    monkeypatch.setattr(video, "whisper_transcribe", lambda url: seen.setdefault("transcribe", url) and [])
+    monkeypatch.setattr(video, "ytdlp_subtitle", lambda url, lang, timeout: seen.setdefault("subtitle", (url, lang)) and [])
+    url = "https://www.tiktok.com/@scout2015/video/6718335390845095173"
+    VideoChannel()._whisper_transcribe(target=url, timeout=10)
+    VideoChannel()._ytdlp_subtitle(target=url, lang="es", timeout=10)
+    assert seen == {"transcribe": url, "subtitle": (url, "es")}

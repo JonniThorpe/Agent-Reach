@@ -6,8 +6,10 @@ Fork personal de [Panniantong/Agent-Reach](https://github.com/Panniantong/Agent-
 
 - **Skill en español** (`agent_reach/skill/SKILL_es.md` y `references/sesiones.md`, `capacidades.md`, `mantenimiento.md`). Es la que se instala por defecto; `AGENT_REACH_LANG=en` o `AGENT_REACH_LANG=zh` instalan la inglesa o la china.
 - **Informe de instalación, estados y mensajes de error** en español.
-- **Navegador propio en español** (`es-ES`), así las páginas de inicio de sesión ya no salen en chino.
-- **Subtítulos de YouTube** en español primero y luego en inglés (antes, chino). Se puede pedir otro idioma con `--lang`.
+- **Navegador propio en inglés** (`en-US`), en vez de chino. Las herramientas de terceros que controlan el navegador (OpenCLI) buscan textos de la interfaz en inglés, así que el navegador y las cuentas que usa deben estar en inglés. Lo que ves tú (respuestas, informes, skill) sigue en español.
+- **Canal `video` (nuevo)** para TikTok e Instagram Reels públicos: `read` (descripción, autor, estadísticas), `subtitle` y `transcribe` (con clave de Groq), todo por yt-dlp, sin navegador ni sesión.
+- **Lectura de ofertas de LinkedIn**: si falla la lectura con sesión (LinkedIn cambió el diseño de sus ofertas en 2026), usa la página pública.
+- **Subtítulos de YouTube**: se descarga una sola pista (subtítulos humanos en español o inglés; si no, los automáticos del idioma original) en vez de pedir varias a la vez. Pedir traducciones automáticas era lo que provocaba los bloqueos de una hora (HTTP 429). Se puede preferir otro idioma con `--lang`.
 
 Las palabras chinas que el código usa para detectar errores de webs chinas (Bilibili, Xiaohongshu, Boss Zhipin…) se mantienen a propósito: son funcionales.
 
