@@ -193,12 +193,39 @@ def test_read_routes_reels_to_video_not_instagram():
 
 def test_video_transcribe_and_subtitle_reuse_the_shared_helpers(monkeypatch):
     seen = {}
-    monkeypatch.setattr(video, "whisper_transcribe", lambda url: seen.setdefault("transcribe", url) and [])
-    monkeypatch.setattr(video, "ytdlp_subtitle", lambda url, lang, timeout: seen.setdefault("subtitle", (url, lang)) and [])
+    monkeypatch.setattr(video, "whisper_transcribe", lambda url, cookies: seen.setdefault("transcribe", url) and [])
+    monkeypatch.setattr(video, "ytdlp_subtitle",
+                        lambda url, lang, timeout, cookies: seen.setdefault("subtitle", (url, lang)) and [])
     url = "https://www.tiktok.com/@scout2015/video/6718335390845095173"
     VideoChannel()._whisper_transcribe(target=url, timeout=10)
     VideoChannel()._ytdlp_subtitle(target=url, lang="es", timeout=10)
     assert seen == {"transcribe": url, "subtitle": (url, "es")}
+
+
+def test_video_hands_the_saved_instagram_login_to_ytdlp_only_for_instagram(monkeypatch):
+    rows = [{"name": "sessionid", "value": "abc", "domain": ".instagram.com", "path": "/",
+             "secure": True, "expires": 1900000000.5}]
+    monkeypatch.setattr(video, "_instagram_cookies", lambda: rows)
+    seen = {}
+
+    def fake_info(url, timeout, cookies):
+        seen[url] = open(cookies, encoding="utf-8").read() if cookies else None
+        return []
+
+    monkeypatch.setattr(video, "ytdlp_info", fake_info)
+    reel = "https://www.instagram.com/reel/C9xYz12AbCd/"
+    tiktok = "https://www.tiktok.com/@scout2015/video/6718335390845095173"
+    VideoChannel()._ytdlp_read(target=reel, timeout=10)
+    VideoChannel()._ytdlp_read(target=tiktok, timeout=10)
+    assert seen[reel].splitlines()[1] == ".instagram.com\tTRUE\t/\tTRUE\t1900000000\tsessionid\tabc"
+    assert seen[tiktok] is None
+
+
+def test_video_ignores_instagram_cookies_without_a_login(monkeypatch):
+    from agent_reach.runtime import browser, cdp
+    monkeypatch.setattr(browser, "is_running", lambda: True)
+    monkeypatch.setattr(cdp, "cookies", lambda domain: [{"name": "csrftoken", "value": "x", "domain": ".instagram.com"}])
+    assert video._instagram_cookies() == []
 
 
 def test_video_links_drop_share_tracking_parameters():

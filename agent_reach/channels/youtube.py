@@ -195,11 +195,16 @@ class YouTubeChannel(Channel):
 
 
 # ── shared with other yt-dlp channels (channels/video.py) ──
+# `cookies`: a Netscape cookie file, for sites that only serve logged-in viewers.
 
 
-def ytdlp_info(url: str, timeout: float) -> list:
+def _cookie_args(cookies) -> list:
+    return ["--cookies", cookies] if cookies else []
+
+
+def ytdlp_info(url: str, timeout: float, cookies=None) -> list:
     """Metadata of one video on any site yt-dlp supports."""
-    out = _run_ytdlp(["--dump-json", "--skip-download", url], timeout)
+    out = _run_ytdlp([*_cookie_args(cookies), "--dump-json", "--skip-download", url], timeout)
     info = json.loads(out.splitlines()[-1])
     return [
         make_item(
@@ -213,10 +218,11 @@ def ytdlp_info(url: str, timeout: float) -> list:
     ]
 
 
-def ytdlp_subtitle(url: str, lang: str, timeout: float) -> list:
+def ytdlp_subtitle(url: str, lang: str, timeout: float, cookies=None) -> list:
     """One subtitle track of one video on any site yt-dlp supports."""
     wanted = [x.strip() for x in lang.split(",") if x.strip()]
-    info_json = _run_ytdlp(["--dump-json", "--skip-download", url], timeout).splitlines()[-1]
+    info_json = _run_ytdlp([*_cookie_args(cookies), "--dump-json", "--skip-download", url],
+                           timeout).splitlines()[-1]
     info = json.loads(info_json)
     code, auto, translated = _pick_subtitle_track(info, wanted)
     with private_temporary_directory(prefix="agent-reach-subs-") as tmp:
@@ -228,6 +234,7 @@ def ytdlp_subtitle(url: str, lang: str, timeout: float) -> list:
         # what it rate-limits (HTTP 429) first.
         _run_ytdlp(
             [
+                *_cookie_args(cookies),
                 "--load-info-json", info_path,
                 "--skip-download", "--no-simulate",
                 "--write-auto-subs" if auto else "--write-subs",
@@ -247,13 +254,13 @@ def ytdlp_subtitle(url: str, lang: str, timeout: float) -> list:
                            "video_language": info.get("language")})]
 
 
-def whisper_transcribe(url: str) -> list:
+def whisper_transcribe(url: str, cookies=None) -> list:
     """Speech-to-text of the audio of one video on any site yt-dlp supports."""
     from agent_reach.transcribe import NoProviderConfigured, TranscribeError
     from agent_reach.transcribe import transcribe as _transcribe
 
     try:
-        text = _transcribe(url)
+        text = _transcribe(url, cookies=cookies)
     except NoProviderConfigured:
         raise ReachError(
             "NEED_SETUP", "no Whisper API key configured",

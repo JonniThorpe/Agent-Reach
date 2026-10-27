@@ -534,7 +534,7 @@ class TestOrchestrator:
         fake_config.set("groq_api_key", "gsk_test")
         created_work_dirs = []
 
-        def fake_download(source, out_dir):
+        def fake_download(source, out_dir, cookies=None):
             from agent_reach.runtime import state
             assert Path(out_dir).parent == state.root()
             assert state.owned_path(Path(out_dir))
@@ -572,7 +572,7 @@ class TestOrchestrator:
         fake_config.set("groq_api_key", "gsk_test")
         work = tmp_path / "caller-owned"
 
-        def fake_download(source, out_dir):
+        def fake_download(source, out_dir, cookies=None):
             audio = Path(out_dir) / "source.m4a"
             audio.write_bytes(b"audio")
             return audio

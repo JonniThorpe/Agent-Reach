@@ -1,14 +1,25 @@
 # -*- coding: utf-8 -*-
-"""Short videos from TikTok and Instagram Reels through yt-dlp, without the browser or a login.
+"""Short videos from TikTok and Instagram Reels through yt-dlp, without opening a page.
 
-Public posts only. Instagram often answers yt-dlp with "login required" or a rate
-limit; this channel never logs in, so those cases end as an error for the user.
+This channel never logs in. When the user has logged in to Instagram themself
+(`agent-reach login instagram`), the Agent Reach browser's Instagram cookies are
+handed to yt-dlp, so reels limited to logged-in viewers can be read too; without
+that session only public posts work.
 """
 
+import json
+import os
 import re
+from contextlib import contextmanager
 from urllib.parse import urlsplit
 
 from agent_reach.runtime.result import BAD_INPUT, ReachError
+from agent_reach.utils.paths import (
+    PrivatePathError,
+    atomic_write_private_text,
+    private_temporary_directory,
+    read_small_text_no_follow,
+)
 from agent_reach.utils.url import host_matches
 
 from .base import Action, Channel, Param
@@ -30,6 +41,50 @@ def _video_url(target: str) -> str:
     if host_matches(candidate, *_INSTAGRAM) and _INSTAGRAM_VIDEO_PATH.match(parts.path):
         return clean
     raise ReachError(BAD_INPUT, "target must be a TikTok video link or an Instagram reel/post link")
+
+
+def _instagram_cookies() -> list:
+    """Instagram cookies of the Agent Reach browser, or [] when it holds no login.
+
+    Live from the running browser, else from the session snapshot it saves.
+    """
+    from agent_reach.runtime import browser, cdp
+
+    rows = cdp.cookies("instagram.com") if browser.is_running() else []
+    if not rows:
+        try:
+            text = read_small_text_no_follow(browser.browser_root() / "session.json", max_bytes=2 * 1024 * 1024)
+            rows = [c for c in json.loads(text or "{}").get("cookies", [])
+                    if isinstance(c, dict) and cdp.domain_matches(c.get("domain", ""), "instagram.com")]
+        except (OSError, ValueError, PrivatePathError):
+            rows = []
+    return rows if any(c.get("name") == "sessionid" and c.get("value") for c in rows) else []
+
+
+def _netscape(rows: list) -> str:
+    lines = ["# Netscape HTTP Cookie File"]
+    for c in rows:
+        domain = c["domain"]
+        expires = c.get("expires", 0)
+        expires = int(expires) if isinstance(expires, (int, float)) and expires > 0 else 0
+        lines.append("\t".join([
+            domain, "TRUE" if domain.startswith(".") else "FALSE", c.get("path") or "/",
+            "TRUE" if c.get("secure") else "FALSE", str(expires), c["name"], c.get("value", ""),
+        ]))
+    return "\n".join(lines) + "\n"
+
+
+@contextmanager
+def _cookie_file(url: str):
+    """Path of a private cookie file for an Instagram link with a saved login, else None."""
+    rows = _instagram_cookies() if host_matches(url, *_INSTAGRAM) else []
+    if not rows:
+        yield None
+        return
+    with private_temporary_directory(prefix="agent-reach-cookies-") as tmp:
+        path = os.path.join(tmp, "cookies.txt")
+        atomic_write_private_text(path, _netscape(rows))
+        yield path
 
 
 class VideoChannel(Channel):
@@ -79,10 +134,16 @@ class VideoChannel(Channel):
     # ── unified entry backends ──
 
     def _ytdlp_read(self, *, target: str, timeout: float) -> list:
-        return ytdlp_info(_video_url(target), timeout)
+        url = _video_url(target)
+        with _cookie_file(url) as cookies:
+            return ytdlp_info(url, timeout, cookies)
 
     def _ytdlp_subtitle(self, *, target: str, lang: str, timeout: float) -> list:
-        return ytdlp_subtitle(_video_url(target), lang, timeout)
+        url = _video_url(target)
+        with _cookie_file(url) as cookies:
+            return ytdlp_subtitle(url, lang, timeout, cookies)
 
     def _whisper_transcribe(self, *, target: str, timeout: float) -> list:
-        return whisper_transcribe(_video_url(target))
+        url = _video_url(target)
+        with _cookie_file(url) as cookies:
+            return whisper_transcribe(url, cookies)

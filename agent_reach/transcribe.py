@@ -244,8 +244,11 @@ def _assert_safe_public_url(url: str) -> None:
         raise TranscribeError("SSRF blocked: private/internal IP is not allowed")
 
 
-def download_audio(url: str, out_dir: Path) -> Path:
-    """Download audio with yt-dlp into out_dir; return the resulting file path."""
+def download_audio(url: str, out_dir: Path, cookies: Optional[str] = None) -> Path:
+    """Download audio with yt-dlp into out_dir; return the resulting file path.
+
+    `cookies` is a Netscape cookie file for sites that only serve logged-in viewers.
+    """
     _assert_safe_public_url(url)
     import sys
 
@@ -265,6 +268,7 @@ def download_audio(url: str, out_dir: Path) -> Path:
             str(MAX_SOURCE_BYTES),
             "-o",
             str(template),
+            *(["--cookies", cookies] if cookies else []),
             "--",
             url,
         ],
@@ -409,6 +413,7 @@ def transcribe(
     out_dir: Optional[Path] = None,
     config: Optional[Config] = None,
     allow_provider_fallback: bool = False,
+    cookies: Optional[str] = None,
 ) -> str:
     """Transcribe a URL or local file path. Returns the joined transcript text.
 
@@ -417,6 +422,7 @@ def transcribe(
     `allow_provider_fallback=True` to permit sending failed chunks to the next
     configured provider; using the flag with an explicit provider is rejected.
     `out_dir` defaults to a fresh temp directory; intermediate files stay there.
+    `cookies` is passed to yt-dlp when `source` is a URL.
     """
     if allow_provider_fallback and provider != "auto":
         raise TranscribeError(
@@ -436,22 +442,23 @@ def transcribe(
         order = configured[:1]
 
     if out_dir:
-        return _transcribe_in_dir(source, order, cfg, Path(out_dir))
+        return _transcribe_in_dir(source, order, cfg, Path(out_dir), cookies)
 
     from agent_reach.utils.paths import private_temporary_directory
 
     with private_temporary_directory(prefix="transcribe-") as tmp:
-        return _transcribe_in_dir(source, order, cfg, Path(tmp))
+        return _transcribe_in_dir(source, order, cfg, Path(tmp), cookies)
 
 
-def _transcribe_in_dir(source: str, order: List[str], cfg: Config, work_dir: Path) -> str:
+def _transcribe_in_dir(source: str, order: List[str], cfg: Config, work_dir: Path,
+                       cookies: Optional[str] = None) -> str:
     work_dir.mkdir(parents=True, exist_ok=True)
 
     src_path = Path(source)
     if src_path.is_file():
         audio = src_path
     else:
-        audio = download_audio(source, work_dir)
+        audio = download_audio(source, work_dir, cookies)
 
     _require_size_at_most(audio, MAX_SOURCE_BYTES, "source")
     _require_duration_within_budget(audio)
