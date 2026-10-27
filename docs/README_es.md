@@ -24,9 +24,20 @@ agent-reach setup
 
 ## Traer cambios del proyecto original
 
+Es automático, en dos pasos:
+
+1. **GitHub → fork** ([sync-upstream.yml](../.github/workflows/sync-upstream.yml)): cada lunes fusiona el `main` del original en el `main` del fork. Si la fusión es limpia y los tests pasan, la sube sola. Si hay conflictos, fallan los tests o el original cambió un workflow, abre un issue con lo que hay que hacer y no toca `main`. También se puede lanzar a mano desde la pestaña Actions.
+2. **Fork → esta carpeta** ([sync-local.ps1](../scripts/sync-local.ps1)): cada día trae el `main` del fork a la carpeta local, solo si está en `main`, sin cambios a medias y sin commits pendientes de subir. Si cambian las dependencias, reinstala Agent Reach. Deja un registro en `~/.agent-reach/fork-sync.log`. Se registra una vez con:
+
+   ```bash
+   powershell -ExecutionPolicy Bypass -File scripts\sync-local.ps1 -Register
+   ```
+
+A mano, si hay conflictos:
+
 ```bash
-git fetch upstream
-git merge upstream/main
+git pull upstream main
+git push origin main
 ```
 
-Si hay conflictos, suelen estar en los textos traducidos: conserva el texto en español y aplica el cambio de lógica del original.
+Los conflictos suelen estar en los textos traducidos: conserva el texto en español y aplica el cambio de lógica del original.
