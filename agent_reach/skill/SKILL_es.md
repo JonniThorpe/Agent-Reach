@@ -61,7 +61,7 @@ La primera vez que se usa un sitio, si el Chrome del usuario está conectado a l
 
 ## Notas por plataforma
 
-- YouTube: los enlaces de Shorts (`youtube.com/shorts/…`) funcionan igual que los vídeos normales. `subtitle` busca primero subtítulos en español y luego en inglés; para otro idioma usa `--lang`. Si el vídeo no tiene subtítulos, `transcribe` convierte el audio en texto (necesita una clave de Groq u OpenAI).
+- YouTube: los enlaces de Shorts (`youtube.com/shorts/…`) funcionan igual que los vídeos normales. `subtitle` descarga una sola pista: subtítulos hechos por personas en español (o en inglés); si no hay, los automáticos en el idioma original del vídeo. Mira `raw.lang`: si no es español, traduce tú el texto al responder; no pidas otra pista traducida, porque YouTube limita mucho esas peticiones. Para preferir otro idioma usa `--lang`. Si el vídeo no tiene subtítulos, `transcribe` convierte el audio en texto (necesita una clave de Groq u OpenAI).
 - Reach obtiene texto (título, descripción, subtítulos, transcripción), no imágenes: nunca afirmes haber visto lo que aparece en un vídeo o una imagen.
 - Al leer Xiaohongshu solo se obtienen descripciones de texto; nunca afirmes entender las imágenes o el vídeo.
 - Cuando un resultado de búsqueda de Boss Zhipin tenga `salary_encoded=true`, nunca adivines las cifras del salario; lee el enlace del empleo para ver el salario legible en el detalle.

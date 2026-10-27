@@ -65,6 +65,30 @@ def _run_ytdlp(args: list, timeout: float, cwd=None) -> str:
         raise
 
 
+def _pick_subtitle_track(info: dict, wanted: list) -> tuple:
+    """(code, auto, translated) of the single track to download.
+
+    Order: human subtitles in a wanted language; the auto captions of the video's own
+    language (faithful to the audio); any human subtitles; a machine translation last.
+    """
+    manual = {k: v for k, v in (info.get("subtitles") or {}).items() if k != "live_chat"}
+    auto = info.get("automatic_captions") or {}
+    for code in wanted:
+        if code in manual:
+            return code, False, False
+    spoken = info.get("language") or ""
+    originals = [c for c in auto if c.endswith("-orig")]
+    for code in ([f"{spoken}-orig"] if spoken else []) + originals + ([spoken] if spoken else []):
+        if code in auto:
+            return code, True, False
+    if manual:
+        return next(iter(manual)), False, False
+    for code in wanted:
+        if code in auto:
+            return code, True, True
+    raise ReachError(NOT_FOUND, "this video has no subtitles or auto captions")
+
+
 def _iso_date(yyyymmdd) -> str:
     s = str(yyyymmdd or "")
     return f"{s[:4]}-{s[4:6]}-{s[6:8]}" if len(s) == 8 and s.isdigit() else ""
@@ -119,7 +143,8 @@ class YouTubeChannel(Channel):
             "Full subtitle text of a video (manual or auto captions)",
             (
                 Param("target", "video link or id"),
-                Param("lang", "preferred languages, comma separated", required=False, default="es,es-ES,es-419,en,en-orig"),
+                Param("lang", "preferred languages for human subtitles, comma separated; otherwise the video's own language",
+                      required=False, default="es,es-ES,es-419,en"),
             ),
             (("yt-dlp", "_ytdlp_subtitle"),),
             live_test={"target": "https://www.youtube.com/watch?v=jNQXAC9IVRw"},
@@ -176,33 +201,35 @@ class YouTubeChannel(Channel):
     def _ytdlp_subtitle(self, *, target: str, lang: str, timeout: float) -> list:
         url = _video_url(target)
         wanted = [x.strip() for x in lang.split(",") if x.strip()]
+        info_json = _run_ytdlp(["--dump-json", "--skip-download", url], timeout)
+        info = json.loads(info_json.splitlines()[-1])
+        code, auto, translated = _pick_subtitle_track(info, wanted)
         with private_temporary_directory(prefix="agent-reach-subs-") as tmp:
-            out = _run_ytdlp(
+            info_path = os.path.join(tmp, "info.json")
+            with open(info_path, "w", encoding="utf-8") as fh:
+                fh.write(info_json.splitlines()[-1])
+            # One track only, from the info already fetched: asking for several languages
+            # makes YouTube machine-translate the auto captions, and those requests are
+            # what it rate-limits (HTTP 429) first.
+            _run_ytdlp(
                 [
+                    "--load-info-json", info_path,
                     "--skip-download", "--no-simulate",
-                    "--write-subs", "--write-auto-subs",
-                    "--sub-langs", ",".join(wanted), "--sub-format", "vtt",
-                    "--print", "%(title)s",
+                    "--write-auto-subs" if auto else "--write-subs",
+                    "--sub-langs", code, "--sub-format", "vtt",
                     "-o", "%(id)s.%(ext)s",
-                    url,
                 ],
                 timeout,
                 cwd=tmp,
             )
             files = [f for f in os.listdir(tmp) if f.endswith(".vtt")]
             if not files:
-                raise ReachError(NOT_FOUND, f"no subtitles in {', '.join(wanted)} for this video")
-
-            def rank(name: str) -> int:
-                code = name.rsplit(".", 2)[-2] if name.count(".") >= 2 else ""
-                return wanted.index(code) if code in wanted else len(wanted)
-
-            best = min(files, key=rank)
-            with open(os.path.join(tmp, best), encoding="utf-8", errors="replace") as fh:
+                raise ReachError(NOT_FOUND, f"subtitle track '{code}' could not be downloaded")
+            with open(os.path.join(tmp, files[0]), encoding="utf-8", errors="replace") as fh:
                 text = vtt_to_text(fh.read())
-        title = next((ln for ln in out.splitlines() if ln.strip()), None)
-        code = best.rsplit(".", 2)[-2] if best.count(".") >= 2 else None
-        return [make_item(title=title, url=url, text=text, raw={"lang": code})]
+        return [make_item(title=info.get("title"), url=url, text=text,
+                          raw={"lang": code, "auto": auto, "translated": translated,
+                               "video_language": info.get("language")})]
 
     def _whisper_transcribe(self, *, target: str, timeout: float) -> list:
         from agent_reach.transcribe import NoProviderConfigured, TranscribeError

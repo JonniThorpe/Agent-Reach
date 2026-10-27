@@ -96,3 +96,61 @@ def test_project_installs_official_ytdlp_default_dependencies():
 
 
 
+
+
+# --- subtitle track choice: one track, never a needless machine translation ---
+
+import json  # noqa: E402
+import os  # noqa: E402
+
+import pytest  # noqa: E402
+
+from agent_reach.channels import youtube  # noqa: E402
+from agent_reach.runtime.result import ReachError  # noqa: E402
+
+_ES = ["es", "es-ES", "es-419", "en"]
+
+
+def test_pick_prefers_human_subtitles_in_a_wanted_language():
+    info = {"language": "en", "subtitles": {"en": [{}], "es": [{}]}, "automatic_captions": {"en-orig": [{}], "es": [{}]}}
+    assert youtube._pick_subtitle_track(info, _ES) == ("es", False, False)
+
+
+def test_pick_uses_original_language_auto_captions_before_any_translation():
+    # Every language shows up in automatic_captions; only the original is not a translation.
+    info = {"language": "en", "subtitles": {}, "automatic_captions": {"en-orig": [{}], "en": [{}], "es": [{}], "zh-Hans": [{}]}}
+    assert youtube._pick_subtitle_track(info, _ES) == ("en-orig", True, False)
+
+
+def test_pick_falls_back_to_spoken_language_when_no_orig_track():
+    info = {"language": "fr", "subtitles": {"live_chat": [{}]}, "automatic_captions": {"fr": [{}], "es": [{}]}}
+    assert youtube._pick_subtitle_track(info, _ES) == ("fr", True, False)
+
+
+def test_pick_translates_only_as_last_resort_and_reports_none():
+    info = {"subtitles": {}, "automatic_captions": {"es": [{}]}}
+    assert youtube._pick_subtitle_track(info, _ES) == ("es", True, True)
+    with pytest.raises(ReachError, match="no subtitles"):
+        youtube._pick_subtitle_track({"subtitles": {}, "automatic_captions": {}}, _ES)
+
+
+def test_subtitle_downloads_exactly_one_track_from_the_fetched_info(monkeypatch):
+    info = {"id": "jTwm4xs5y4c", "title": "4 Rust tips", "language": "en",
+            "subtitles": {}, "automatic_captions": {"en-orig": [{}], "es": [{}]}}
+    calls = []
+
+    def fake_run(args, timeout, cwd=None):
+        calls.append(args)
+        if "--dump-json" in args:
+            return json.dumps(info)
+        with open(os.path.join(cwd, "jTwm4xs5y4c.en-orig.vtt"), "w", encoding="utf-8") as fh:
+            fh.write("WEBVTT\n\n00:00:00.000 --> 00:00:02.000\nbuild a honeycomb\n")
+        return ""
+
+    monkeypatch.setattr(youtube, "_run_ytdlp", fake_run)
+    items = YouTubeChannel()._ytdlp_subtitle(target="jTwm4xs5y4c", lang=",".join(_ES), timeout=30)
+    download = calls[1]
+    assert len(calls) == 2 and "--load-info-json" in download
+    assert download[download.index("--sub-langs") + 1] == "en-orig" and "--write-auto-subs" in download
+    assert items[0]["title"] == "4 Rust tips" and "honeycomb" in items[0]["text"]
+    assert items[0]["raw"]["lang"] == "en-orig" and items[0]["raw"]["translated"] is False
