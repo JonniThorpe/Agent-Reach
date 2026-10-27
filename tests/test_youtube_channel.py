@@ -199,3 +199,10 @@ def test_video_transcribe_and_subtitle_reuse_the_shared_helpers(monkeypatch):
     VideoChannel()._whisper_transcribe(target=url, timeout=10)
     VideoChannel()._ytdlp_subtitle(target=url, lang="es", timeout=10)
     assert seen == {"transcribe": url, "subtitle": (url, "es")}
+
+
+def test_video_links_drop_share_tracking_parameters():
+    reel = "https://www.instagram.com/reel/DemkNsYu8og/?utm_source=ig_web_copy_link&srtk=MzRlODBiNWFlZA=="
+    tiktok = "https://www.tiktok.com/@scout2015/video/6718335390845095173?is_from_webapp=1&sender_device=pc"
+    assert video._video_url(reel) == "https://www.instagram.com/reel/DemkNsYu8og/"
+    assert video._video_url(tiktok) == "https://www.tiktok.com/@scout2015/video/6718335390845095173"

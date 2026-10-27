@@ -22,10 +22,13 @@ _INSTAGRAM_VIDEO_PATH = re.compile(r"^/(?:[^/]+/)?(?:reels?|p|tv)/[A-Za-z0-9_-]+
 def _video_url(target: str) -> str:
     t = str(target).strip()
     candidate = t if "://" in t else f"https://{t}"
+    parts = urlsplit(candidate)
+    # Share links carry tracking tokens (utm_*, srtk, is_from_webapp...); the path identifies the video.
+    clean = f"{parts.scheme}://{parts.netloc}{parts.path}"
     if host_matches(candidate, *_TIKTOK):
-        return candidate
-    if host_matches(candidate, *_INSTAGRAM) and _INSTAGRAM_VIDEO_PATH.match(urlsplit(candidate).path):
-        return candidate
+        return clean
+    if host_matches(candidate, *_INSTAGRAM) and _INSTAGRAM_VIDEO_PATH.match(parts.path):
+        return clean
     raise ReachError(BAD_INPUT, "target must be a TikTok video link or an Instagram reel/post link")
 
 
