@@ -193,7 +193,7 @@ def test_read_routes_reels_to_video_not_instagram():
 
 def test_video_transcribe_and_subtitle_reuse_the_shared_helpers(monkeypatch):
     seen = {}
-    monkeypatch.setattr(video, "whisper_transcribe", lambda url, cookies: seen.setdefault("transcribe", url) and [])
+    monkeypatch.setattr(video, "whisper_transcribe", lambda url, cookies, timestamps=False: seen.setdefault("transcribe", url) and [])
     monkeypatch.setattr(video, "ytdlp_subtitle",
                         lambda url, lang, timeout, cookies: seen.setdefault("subtitle", (url, lang)) and [])
     url = "https://www.tiktok.com/@scout2015/video/6718335390845095173"
