@@ -5,6 +5,9 @@ This channel never logs in. When the user has logged in to Instagram themself
 (`agent-reach login instagram`), the Agent Reach browser's Instagram cookies are
 handed to yt-dlp, so reels limited to logged-in viewers can be read too; without
 that session only public posts work.
+
+To see the video, the agent transcribes it (each line carries its `[m:ss]`),
+picks the moments whose image explains what is said, and asks `frames` for them.
 """
 
 import json
@@ -13,7 +16,7 @@ import re
 from contextlib import contextmanager
 from urllib.parse import urlsplit
 
-from agent_reach.runtime.result import BAD_INPUT, ReachError
+from agent_reach.runtime.result import BAD_INPUT, ReachError, make_item
 from agent_reach.utils.paths import (
     PrivatePathError,
     atomic_write_private_text,
@@ -92,7 +95,7 @@ class VideoChannel(Channel):
     description = "Vídeos cortos públicos de TikTok e Instagram Reels"
 
     level = "default"
-    #: transcribe re-encodes and chunks audio
+    #: transcribe re-encodes and chunks audio; frames cuts stills from the video
     prereqs = ("ffmpeg",)
     actions = (
         Action(
@@ -114,10 +117,22 @@ class VideoChannel(Channel):
         ),
         Action(
             "transcribe",
-            "Speech-to-text of the video's audio (uses Groq/OpenAI Whisper quota)",
+            "Speech-to-text of the video's audio, one `[m:ss] text` line per segment (uses Groq/OpenAI Whisper quota)",
             (Param("target", "TikTok or Instagram reel link"),),
             (("whisper", "_whisper_transcribe"),),
             timeout=600,
+        ),
+        Action(
+            "frames",
+            "Still images of the video at chosen moments, saved as JPEG files to open and look at",
+            (
+                Param("target", "TikTok or Instagram reel link"),
+                Param("at", "moments to capture, comma separated seconds or m:ss (e.g. 0:03,0:12,27.5), "
+                      "picked from the timestamped transcript; empty spreads 6 frames evenly",
+                      required=False, default=""),
+            ),
+            (("ffmpeg", "_ffmpeg_frames"),),
+            timeout=900,
         ),
     )
 
@@ -146,4 +161,20 @@ class VideoChannel(Channel):
     def _whisper_transcribe(self, *, target: str, timeout: float) -> list:
         url = _video_url(target)
         with _cookie_file(url) as cookies:
-            return whisper_transcribe(url, cookies)
+            return whisper_transcribe(url, cookies, timestamps=True)
+
+    def _ffmpeg_frames(self, *, target: str, at: str, timeout: float) -> list:
+        from agent_reach.frames import extract_frames, parse_moments
+        from agent_reach.transcribe import TranscribeError
+
+        url = _video_url(target)
+        try:
+            parse_moments(at)
+        except ValueError as exc:
+            raise ReachError(BAD_INPUT, str(exc)) from None
+        try:
+            with _cookie_file(url) as cookies:
+                frames = extract_frames(url, at, cookies=cookies)
+        except TranscribeError as exc:
+            raise ReachError("UPSTREAM_BROKEN", str(exc)[:300]) from None
+        return [make_item(title=f"frame at {f['clock']}", url=url, text=f["path"], raw=f) for f in frames]

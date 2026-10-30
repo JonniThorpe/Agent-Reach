@@ -254,13 +254,16 @@ def ytdlp_subtitle(url: str, lang: str, timeout: float, cookies=None) -> list:
                            "video_language": info.get("language")})]
 
 
-def whisper_transcribe(url: str, cookies=None) -> list:
-    """Speech-to-text of the audio of one video on any site yt-dlp supports."""
+def whisper_transcribe(url: str, cookies=None, timestamps: bool = False) -> list:
+    """Speech-to-text of the audio of one video on any site yt-dlp supports.
+
+    `timestamps` starts each line with `[m:ss]`.
+    """
     from agent_reach.transcribe import NoProviderConfigured, TranscribeError
     from agent_reach.transcribe import transcribe as _transcribe
 
     try:
-        text = _transcribe(url, cookies=cookies)
+        text = _transcribe(url, cookies=cookies, timestamps=timestamps)
     except NoProviderConfigured:
         raise ReachError(
             "NEED_SETUP", "no Whisper API key configured",
